@@ -1,0 +1,7 @@
+node_modules/
+.next/
+dist/
+cli/dist/
+cli/node_modules/
+*.db
+package-lock.json

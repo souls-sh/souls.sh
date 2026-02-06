@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Soul {
+  id          String     @id @default(cuid())
+  name        String     // normalized lowercase agent/soul name
+  description String?
+  content     String?    // Stored for moltbook, null for github (fetched live)
+  downloads   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Source
+  source      String     // "github" | "moltbook"
+  sourceId    String     // github: "owner/repo", moltbook: "moltbook/agent-name"
+  sourceUrl   String?    // github repo URL or moltbook profile URL
+
+  // Author
+  authorId    String     // github: owner, moltbook: agent ID
+  authorName  String     // github: owner, moltbook: agent name
+  authorUrl   String?    // github profile or moltbook profile URL
+  authorAvatar String?
+
+  // Trust
+  verified    Boolean    @default(false)  // github: true (repo exists), moltbook: is_claimed
+
+  // Source-specific extras
+  metadata    Json?      // github: {repo}, moltbook: {karma, followers, ownerHandle}
+
+  downloadLog Download[]
+
+  @@unique([source, sourceId, name])
+}
+
+model Download {
+  id        String   @id @default(cuid())
+  soulId    String
+  timestamp DateTime @default(now())
+  soul      Soul     @relation(fields: [soulId], references: [id])
+}
