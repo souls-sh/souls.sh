@@ -15,7 +15,11 @@
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "postinstall": "prisma generate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release:cli:patch": "npm --prefix cli run release:patch",
+    "release:cli:minor": "npm --prefix cli run release:minor",
+    "release:cli:major": "npm --prefix cli run release:major",
+    "release:cli": "npm --prefix cli run release"
   },
   "keywords": [],
   "author": "",
