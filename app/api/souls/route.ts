@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
-import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
+import { type NextRequest, NextResponse } from 'next/server';
 
 const MAX_SEARCH_LENGTH = 100;
 

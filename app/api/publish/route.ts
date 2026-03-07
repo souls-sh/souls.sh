@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
+import { normalizeName, verifyGitHubSoul } from '@/lib/github-souls';
+import type { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 const MAX_CONTENT_LENGTH = 50000; // 50KB max for SOUL.md
 const MAX_DESCRIPTION_LENGTH = 500;
@@ -56,15 +58,6 @@ function revalidatePublishedSoulPath(
   }
 }
 
-function normalizeName(str: string): string {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
 async function lookupMoltbookAgent(name: string): Promise<MoltbookAgent | null> {
   if (!MOLTBOOK_BOT_API_KEY) {
     console.error('MOLTBOOK_BOT_API_KEY not configured');
@@ -115,36 +108,6 @@ function extractDescription(content: string): string | undefined {
   }
 
   return undefined;
-}
-
-async function verifyGitHubSoulExists(
-  owner: string,
-  repo: string,
-  name: string
-): Promise<'souls' | 'root' | null> {
-  const branches = ['main', 'master'];
-
-  for (const branch of branches) {
-    // Try souls/<name>/SOUL.md first
-    const soulsDirUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/souls/${name}/SOUL.md`;
-    try {
-      const res = await fetch(soulsDirUrl, { method: 'HEAD' });
-      if (res.ok) return 'souls';
-    } catch {
-      // Continue
-    }
-
-    // Try root-level SOUL.md
-    const rootUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/SOUL.md`;
-    try {
-      const res = await fetch(rootUrl, { method: 'HEAD' });
-      if (res.ok) return 'root';
-    } catch {
-      // Continue
-    }
-  }
-
-  return null;
 }
 
 export async function OPTIONS() {
@@ -296,9 +259,31 @@ async function handleGitHub(
     );
   }
 
-  // Verify the SOUL.md actually exists on GitHub
-  const location = await verifyGitHubSoulExists(owner, repo, normalizedName);
-  if (!location) {
+  let verificationResult: Awaited<ReturnType<typeof verifyGitHubSoul>>;
+  try {
+    verificationResult = await verifyGitHubSoul(owner, repo, normalizedName);
+  } catch (error) {
+    const message = (error as Error).message;
+    const status = message.startsWith('Invalid GitHub') ? 400 : 502;
+
+    return NextResponse.json(
+      {
+        error: status === 400 ? message : 'GitHub verification failed. Try again later.',
+      },
+      { status, headers: corsHeaders() }
+    );
+  }
+
+  if (verificationResult.kind === 'root-name-mismatch') {
+    return NextResponse.json(
+      {
+        error: `Root-level SOUL.md is canonicalized to "${verificationResult.canonicalName}". Publish it with --name ${verificationResult.canonicalName} or omit --name.`,
+      },
+      { status: 400, headers: corsHeaders() }
+    );
+  }
+
+  if (verificationResult.kind === 'missing') {
     return NextResponse.json(
       {
         error: `SOUL.md not found. Expected at souls/${normalizedName}/SOUL.md or SOUL.md in repo root`,
@@ -309,21 +294,29 @@ async function handleGitHub(
 
   const safeDescription = description?.slice(0, MAX_DESCRIPTION_LENGTH);
   const sourceId = `${owner}/${repo}`;
+  const canonicalName = verificationResult.metadata.canonicalName;
+  const metadata = verificationResult.metadata as unknown as Prisma.InputJsonValue;
 
   const soul = await prisma.soul.upsert({
     where: {
       source_sourceId_name: {
         source: 'github',
         sourceId,
-        name: normalizedName,
+        name: canonicalName,
       },
     },
     update: {
       description: safeDescription,
+      sourceUrl: `https://github.com/${owner}/${repo}`,
+      authorId: owner,
+      authorName: owner,
+      authorUrl: `https://github.com/${owner}`,
+      verified: true,
+      metadata,
       updatedAt: new Date(),
     },
     create: {
-      name: normalizedName,
+      name: canonicalName,
       description: safeDescription,
       source: 'github',
       sourceId,
@@ -332,11 +325,11 @@ async function handleGitHub(
       authorName: owner,
       authorUrl: `https://github.com/${owner}`,
       verified: true,
-      metadata: { repo, location },
+      metadata,
     },
   });
 
-  revalidatePublishedSoulPath('github', sourceId, normalizedName);
+  revalidatePublishedSoulPath('github', sourceId, canonicalName);
 
   return NextResponse.json(
     {

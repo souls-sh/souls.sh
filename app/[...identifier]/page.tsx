@@ -2,8 +2,9 @@ import Breadcrumb from '@/components/Breadcrumb';
 import CopyCode from '@/components/CopyCode';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { prisma } from '@/lib/db';
+import { fetchGitHubSoulContent, normalizeName, parseGitHubSoulMetadata } from '@/lib/github-souls';
 import { BadgeCheck } from 'lucide-react';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 interface PageProps {
@@ -34,7 +35,7 @@ async function getGitHubSoul(owner: string, repo: string, name: string) {
         source_sourceId_name: {
           source: 'github',
           sourceId,
-          name,
+          name: normalizeName(name),
         },
       },
     });
@@ -59,41 +60,17 @@ async function getMoltbookSoul(name: string) {
 async function fetchGitHubSoulMarkdown(
   owner: string,
   repo: string,
-  name: string
+  metadataValue: unknown
 ): Promise<string | null> {
-  const mainUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/souls/${encodeURIComponent(name)}/SOUL.md`;
-  const masterUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/souls/${encodeURIComponent(name)}/SOUL.md`;
-
-  // Also try root-level SOUL.md for single-soul repos
-  const mainRootUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/SOUL.md`;
-  const masterRootUrl = `https://raw.githubusercontent.com/${owner}/${repo}/master/SOUL.md`;
+  const metadata = parseGitHubSoulMetadata(metadataValue);
+  if (!metadata) {
+    return null;
+  }
 
   try {
-    // Try souls/<name>/SOUL.md first
-    const resMain = await fetch(mainUrl, { next: { revalidate: 3600 } });
-    if (resMain.ok) {
-      return resMain.text();
-    }
-
-    const resMaster = await fetch(masterUrl, { next: { revalidate: 3600 } });
-    if (resMaster.ok) {
-      return resMaster.text();
-    }
-
-    // Try root-level if name matches repo
-    if (name === repo) {
-      const resMainRoot = await fetch(mainRootUrl, { next: { revalidate: 3600 } });
-      if (resMainRoot.ok) {
-        return resMainRoot.text();
-      }
-
-      const resMasterRoot = await fetch(masterRootUrl, { next: { revalidate: 3600 } });
-      if (resMasterRoot.ok) {
-        return resMasterRoot.text();
-      }
-    }
-
-    return null;
+    return await fetchGitHubSoulContent(owner, repo, metadata, {
+      next: { revalidate: 3600 },
+    });
   } catch {
     return null;
   }
@@ -118,7 +95,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const installHint =
     context.source === 'github'
-      ? `Install: npx souls.sh install ${context.owner}/${context.repo} --name ${context.name}`
+      ? `Install: npx souls.sh install ${context.owner}/${context.repo} --name ${soul.name}`
       : `Install: npx souls.sh install moltbook/${soul.name}`;
 
   return {
@@ -140,11 +117,20 @@ export default async function SoulDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const githubSoulPromise =
+    context.source === 'github'
+      ? getGitHubSoul(context.owner, context.repo, context.name)
+      : Promise.resolve(null);
+
   const [soul, markdownContent] =
     context.source === 'github'
       ? await Promise.all([
-          getGitHubSoul(context.owner, context.repo, context.name),
-          fetchGitHubSoulMarkdown(context.owner, context.repo, context.name),
+          githubSoulPromise,
+          githubSoulPromise.then((githubSoul) =>
+            githubSoul
+              ? fetchGitHubSoulMarkdown(context.owner, context.repo, githubSoul.metadata)
+              : Promise.resolve(null)
+          ),
         ])
       : await Promise.all([getMoltbookSoul(context.name), Promise.resolve(null)]);
 
@@ -156,21 +142,22 @@ export default async function SoulDetailPage({ params }: PageProps) {
     context.source === 'moltbook'
       ? ((soul.metadata as { karma?: number; followers?: number }) ?? null)
       : null;
+  const githubMeta = context.source === 'github' ? parseGitHubSoulMetadata(soul.metadata) : null;
 
   const installCommand =
     context.source === 'github'
-      ? `npx souls.sh install ${context.owner}/${context.repo} --name ${context.name}`
+      ? `npx souls.sh install ${context.owner}/${context.repo} --name ${soul.name}`
       : `npx souls.sh install moltbook/${soul.name}`;
 
   const fallbackUrl =
     context.source === 'github'
-      ? `https://github.com/${context.owner}/${context.repo}/tree/main/souls/${context.name}`
+      ? githubMeta?.htmlUrl
       : soul.sourceUrl || `https://moltbook.com/u/${soul.name}`;
 
   const fallbackLabel = context.source === 'github' ? 'View on GitHub' : 'View on Moltbook';
 
   return (
-    <main className="max-w-4xl mx-auto py-8">
+    <main className="mx-auto max-w-4xl py-8">
       {/* Breadcrumb */}
       <Breadcrumb
         items={
@@ -179,7 +166,7 @@ export default async function SoulDetailPage({ params }: PageProps) {
                 { label: 'Souls', href: '/' },
                 { label: context.owner },
                 { label: context.repo },
-                { label: context.name },
+                { label: soul.name },
               ]
             : [{ label: 'Souls', href: '/' }, { label: 'Moltbook' }, { label: soul.name }]
         }
@@ -187,17 +174,17 @@ export default async function SoulDetailPage({ params }: PageProps) {
 
       {/* Page Title */}
       {context.source === 'moltbook' ? (
-        <div className="flex items-center gap-4 mb-4">
+        <div className="mb-4 flex items-center gap-4">
           {soul.authorAvatar && (
-            <img src={soul.authorAvatar} alt={soul.name} className="w-16 h-16 rounded-full" />
+            <img src={soul.authorAvatar} alt={soul.name} className="h-16 w-16 rounded-full" />
           )}
           <div>
-            <h1 className="text-4xl font-bold text-foreground inline-flex items-center gap-4">
+            <h1 className="text-foreground inline-flex items-center gap-4 text-4xl font-bold">
               {soul.name}
               {soul.verified && <BadgeCheck size={28} />}
             </h1>
             {moltbookMeta?.karma !== undefined && (
-              <p className="text-sm text-(--ds-gray-600) mt-1">
+              <p className="mt-1 text-sm text-(--ds-gray-600)">
                 {moltbookMeta.karma.toLocaleString()} karma
                 {moltbookMeta.followers !== undefined &&
                   ` · ${moltbookMeta.followers.toLocaleString()} followers`}
@@ -207,14 +194,11 @@ export default async function SoulDetailPage({ params }: PageProps) {
         </div>
       ) : (
         <div className="mb-4">
-          <h1 className="text-4xl font-bold text-foreground">{context.name}</h1>
-          {soul.name !== context.name && (
-            <p className="text-xl text-(--ds-gray-600) mt-2">{soul.name}</p>
-          )}
+          <h1 className="text-foreground text-4xl font-bold">{soul.name}</h1>
         </div>
       )}
 
-      {soul.description && <p className="text-lg text-(--ds-gray-600) mb-10">{soul.description}</p>}
+      {soul.description && <p className="mb-10 text-lg text-(--ds-gray-600)">{soul.description}</p>}
 
       {/* Install Command */}
       <section className="mb-10">
@@ -223,10 +207,10 @@ export default async function SoulDetailPage({ params }: PageProps) {
 
       {/* CLI Options */}
       <section className="mb-10">
-        <h2 className="text-sm font-mono font-medium tracking-normal text-foreground uppercase mb-3.5">
+        <h2 className="text-foreground mb-3.5 font-mono text-sm font-medium tracking-normal uppercase">
           CLI Options
         </h2>
-        <div className="space-y-1.5 text-sm text-(--ds-gray-600) font-mono bg-(--ds-gray-100)/50 rounded-md p-4 [&>div]:flex [&>div]:items-baseline [&>div]:gap-4 [&>div>span:first-child]:text-foreground [&>div>span:first-child]:shrink-0">
+        <div className="[&>div>span:first-child]:text-foreground space-y-1.5 rounded-md bg-(--ds-gray-100)/50 p-4 font-mono text-sm text-(--ds-gray-600) [&>div]:flex [&>div]:items-baseline [&>div]:gap-4 [&>div>span:first-child]:shrink-0">
           <div>
             <span>-n, --name &lt;name&gt;</span>
             <span>Select the soul name in multi-soul GitHub repos</span>
@@ -255,7 +239,7 @@ export default async function SoulDetailPage({ params }: PageProps) {
       </section>
 
       {/* Divider */}
-      <hr className="border-(--ds-gray-200) mb-10" />
+      <hr className="mb-10 border-(--ds-gray-200)" />
 
       {/* Markdown Content */}
       {(context.source === 'github' ? markdownContent : soul.content) ? (
@@ -267,21 +251,21 @@ export default async function SoulDetailPage({ params }: PageProps) {
           />
         </article>
       ) : (
-        <div className="text-(--ds-gray-600) py-8 text-center border border-dashed border-(--ds-gray-400) rounded-lg">
+        <div className="rounded-lg border border-dashed border-(--ds-gray-400) py-8 text-center text-(--ds-gray-600)">
           <p>SOUL.md content unavailable.</p>
-          <p className="text-sm mt-2">
-            {fallbackLabel}:{' '}
-            <a
-              href={fallbackUrl}
-              className="text-foreground underline hover:text-(--ds-gray-900)"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {context.source === 'github'
-                ? `${context.owner}/${context.repo}/souls/${context.name}`
-                : soul.name}
-            </a>
-          </p>
+          {fallbackUrl && (
+            <p className="mt-2 text-sm">
+              {fallbackLabel}:{' '}
+              <a
+                href={fallbackUrl}
+                className="text-foreground underline hover:text-(--ds-gray-900)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {context.source === 'github' ? fallbackUrl : soul.name}
+              </a>
+            </p>
+          )}
         </div>
       )}
     </main>

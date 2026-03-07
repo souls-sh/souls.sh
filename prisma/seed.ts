@@ -1,6 +1,7 @@
-import { Prisma, PrismaClient } from '@prisma/client';
-import * as fs from 'fs';
-import * as path from 'path';
+import { type Prisma, PrismaClient } from '@prisma/client';
+import { createGitHubSoulMetadata } from '../lib/github-souls';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const prisma = new PrismaClient();
 
@@ -77,7 +78,12 @@ function buildGitHubSoul(base: BaseSoul): SeedSoul {
     authorName: OWNER,
     authorUrl: `https://github.com/${OWNER}`,
     verified: true,
-    metadata: { repo: REPO, location: 'souls' } as Prisma.InputJsonValue,
+    metadata: createGitHubSoulMetadata({
+      branch: 'main',
+      canonicalName: base.name,
+      location: 'souls',
+      htmlUrl: `https://github.com/${OWNER}/${REPO}/blob/main/souls/${base.name}/SOUL.md`,
+    }) as unknown as Prisma.InputJsonValue,
   };
 }
 
@@ -139,7 +145,10 @@ async function main() {
           name: soul.name,
         },
       },
-      update: { description: soul.description },
+      update: {
+        description: soul.description,
+        metadata: soul.metadata,
+      },
       create: soul,
     });
     console.log(`Created/updated soul: ${soul.name} (${soul.downloads} downloads)`);

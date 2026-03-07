@@ -31,7 +31,7 @@ model Soul {
   verified    Boolean    @default(false)  // github: true (repo exists), moltbook: is_claimed
 
   // Source-specific extras
-  metadata    Json?      // github: {repo}, moltbook: {karma, followers, ownerHandle}
+  metadata    Json?      // github: {version, location, branch, canonicalName, contentPath, htmlUrl}; moltbook: {karma, followers, ownerHandle}
 
   downloadLog Download[]
 

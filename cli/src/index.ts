@@ -2,13 +2,13 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
-import * as fs from 'fs';
-import * as http from 'http';
-import * as https from 'https';
+import * as fs from 'node:fs';
+import * as http from 'node:http';
+import * as https from 'node:https';
 import ora from 'ora';
-import * as os from 'os';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,14 +53,16 @@ interface ApiPostResult<T> {
   data: T | null;
 }
 
-interface ParsedSource {
-  source: 'github' | 'moltbook';
-  // GitHub fields
-  owner?: string;
-  repo?: string;
-  // Moltbook fields
-  agentName?: string;
-}
+type ParsedSource =
+  | {
+      source: 'github';
+      owner: string;
+      repo: string;
+    }
+  | {
+      source: 'moltbook';
+      agentName: string;
+    };
 
 interface GitHubContent {
   name: string;
@@ -450,7 +452,7 @@ async function installSoul(
     let soulName: string;
 
     if (parsed.source === 'moltbook') {
-      const agentName = parsed.agentName!;
+      const { agentName } = parsed;
       sourceId = `moltbook/${agentName}`;
       soulName = agentName;
       displaySource = sourceId;
@@ -463,8 +465,7 @@ async function installSoul(
 
       content = apiResponse.content;
     } else {
-      const owner = parsed.owner!;
-      const repo = parsed.repo!;
+      const { owner, repo } = parsed;
       const resolved = await resolveGitHubSoul(owner, repo, options.name);
 
       sourceId = resolved.sourceId;
@@ -543,8 +544,7 @@ async function publishSoul(input: string, options: { name?: string; all?: boolea
       process.exit(1);
     }
 
-    const owner = parsed.owner!;
-    const repo = parsed.repo!;
+    const { owner, repo } = parsed;
     if (options.name && options.all) {
       spinner.fail(chalk.red('Use either --name <name> or --all, not both.'));
       process.exit(1);
@@ -670,7 +670,7 @@ async function listSouls() {
     console.log(
       chalk.gray('  #   ') + chalk.white('SOUL') + ' '.repeat(24) + chalk.gray('DOWNLOADS')
     );
-    console.log(chalk.gray('  ' + '-'.repeat(50)));
+    console.log(chalk.gray(`  ${'-'.repeat(50)}`));
 
     souls.slice(0, 10).forEach((soul: SoulListItem, i: number) => {
       const rank = String(i + 1).padStart(2, ' ');

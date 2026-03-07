@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import {
+  fetchGitHubSoulContent,
+  normalizeName,
+  parseGitHubSourceId,
+  parseGitHubSoulMetadata,
+} from '@/lib/github-souls';
+import { type NextRequest, NextResponse } from 'next/server';
 
 function corsHeaders() {
   return {
@@ -7,15 +13,6 @@ function corsHeaders() {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
-}
-
-function normalizeName(str: string): string {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 export async function OPTIONS() {
@@ -53,7 +50,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Record the download and increment counter
+    let content: string;
+
+    if (soul.source === 'moltbook') {
+      if (!soul.content) {
+        return NextResponse.json(
+          { error: 'SOUL.md content unavailable' },
+          { status: 500, headers: corsHeaders() }
+        );
+      }
+
+      content = soul.content;
+    } else {
+      const source = parseGitHubSourceId(soul.sourceId);
+      const metadata = parseGitHubSoulMetadata(soul.metadata);
+
+      if (!source || !metadata) {
+        return NextResponse.json(
+          { error: 'GitHub soul metadata is invalid. Republish this soul.' },
+          { status: 500, headers: corsHeaders() }
+        );
+      }
+
+      const fetchedContent = await fetchGitHubSoulContent(source.owner, source.repo, metadata);
+      if (!fetchedContent) {
+        return NextResponse.json(
+          { error: 'SOUL.md content unavailable' },
+          { status: 404, headers: corsHeaders() }
+        );
+      }
+
+      content = fetchedContent;
+    }
+
+    // Record the download and increment counter after content resolves successfully.
     await prisma.$transaction([
       prisma.download.create({
         data: { soulId: soul.id },
@@ -64,38 +94,11 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // For moltbook souls, return content directly
-    if (soul.source === 'moltbook' && soul.content) {
-      return NextResponse.json(
-        {
-          success: true,
-          source: 'moltbook',
-          content: soul.content,
-          downloads: soul.downloads + 1,
-        },
-        { headers: corsHeaders() }
-      );
-    }
-
-    // For GitHub souls, return the raw URL
-    const metadata = soul.metadata as { repo?: string; location?: 'souls' | 'root' } | null;
-    const location = metadata?.location || 'root';
-
-    // sourceId is "owner/repo"
-    const [owner, repo] = sourceId.split('/');
-
-    let soulUrl: string;
-    if (location === 'souls') {
-      soulUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/souls/${soul.name}/SOUL.md`;
-    } else {
-      soulUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/SOUL.md`;
-    }
-
     return NextResponse.json(
       {
         success: true,
-        source: 'github',
-        url: soulUrl,
+        source: soul.source,
+        content,
         downloads: soul.downloads + 1,
       },
       { headers: corsHeaders() }
