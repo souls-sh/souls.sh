@@ -6,6 +6,9 @@
     "lib": ["ESNext"],
     "isolatedModules": true,
     "types": ["node"],
+    "paths": {
+      "#cli/*": ["./src/*"]
+    },
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true

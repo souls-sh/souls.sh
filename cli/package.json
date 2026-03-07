@@ -2,6 +2,9 @@
   "name": "souls.sh",
   "version": "1.0.5",
   "type": "module",
+  "imports": {
+    "#cli/*": "./dist/*.js"
+  },
   "description": "Install SOUL.md personality templates for OpenClaw agents",
   "main": "dist/index.js",
   "bin": {
