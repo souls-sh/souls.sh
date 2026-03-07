@@ -1,6 +1,6 @@
 {
   "name": "souls.sh",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "description": "Install SOUL.md personality templates for OpenClaw agents",
   "main": "dist/index.js",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
@@ -38,8 +39,8 @@
     "ora": "^8.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.3"
   },
   "files": [
     "dist",
