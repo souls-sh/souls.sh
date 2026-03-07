@@ -6,9 +6,16 @@ import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import ora from 'ora';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  type ParsedSource,
+  type RepoSoulsResult,
+  parseInput,
+  getRepoSoulSelections,
+  normalizeName,
+  resolveWorkspacePath,
+} from './helpers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,9 +26,6 @@ const PUBLISH_API = `${API_BASE_URL}/api/publish`;
 const SOULS_LIST_API = `${API_BASE_URL}/api/souls`;
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 const VERSION = pkg.version;
-
-// Default workspace location per OpenClaw docs
-const DEFAULT_WORKSPACE = path.join(os.homedir(), '.openclaw', 'workspace');
 
 interface SoulListItem {
   name: string;
@@ -53,46 +57,10 @@ interface ApiPostResult<T> {
   data: T | null;
 }
 
-type ParsedSource =
-  | {
-      source: 'github';
-      owner: string;
-      repo: string;
-    }
-  | {
-      source: 'moltbook';
-      agentName: string;
-    };
-
-interface GitHubContent {
-  name: string;
-  type: string;
-}
-
-interface RepoSoulsResult {
-  names: string[];
-  hasRootSoul: boolean;
-}
-
 interface ResolvedGitHubSoul {
   sourceId: string;
   soulName: string;
   useRootLevel: boolean;
-}
-
-interface RepoSoulSelection {
-  name: string;
-  label: string;
-  useRootLevel: boolean;
-}
-
-function normalizeName(str: string): string {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 function fetchUrl(url: string): Promise<string> {
@@ -166,45 +134,6 @@ function postJson<T>(url: string, payload: unknown): Promise<ApiPostResult<T>> {
   });
 }
 
-function parseInput(input: string): ParsedSource {
-  // Check for moltbook/<agentname> format
-  if (input.startsWith('moltbook/')) {
-    const agentName = input.slice('moltbook/'.length);
-    if (!agentName) {
-      throw new Error('Invalid Moltbook identifier. Use: moltbook/<agent-name>');
-    }
-    return { source: 'moltbook', agentName: normalizeName(agentName) };
-  }
-
-  // GitHub URL
-  if (input.startsWith('http://') || input.startsWith('https://')) {
-    try {
-      const url = new URL(input);
-      if (!url.hostname.includes('github.com')) {
-        throw new Error('Only GitHub URLs are supported.');
-      }
-      const parts = url.pathname.split('/').filter(Boolean);
-      const owner = parts[0];
-      const repo = parts[1];
-      if (!owner || !repo) {
-        throw new Error('Invalid GitHub URL format.');
-      }
-
-      return { source: 'github', owner, repo };
-    } catch (error) {
-      throw new Error(`Invalid GitHub URL: ${(error as Error).message}`);
-    }
-  }
-
-  // GitHub owner/repo format
-  const parts = input.split('/');
-  if (parts.length !== 2) {
-    throw new Error('Invalid identifier. Use owner/repo or moltbook/agent-name.');
-  }
-
-  return { source: 'github', owner: parts[0], repo: parts[1] };
-}
-
 async function fetchRepoSouls(owner: string, repo: string): Promise<RepoSoulsResult> {
   const result: RepoSoulsResult = { names: [], hasRootSoul: false };
 
@@ -212,7 +141,7 @@ async function fetchRepoSouls(owner: string, repo: string): Promise<RepoSoulsRes
   const soulsApiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/souls`;
   try {
     const response = await fetchUrl(soulsApiUrl);
-    const contents: GitHubContent[] = JSON.parse(response);
+    const contents: { name: string; type: string }[] = JSON.parse(response);
     result.names = contents.filter((item) => item.type === 'dir').map((item) => item.name);
   } catch {
     // No souls/ directory
@@ -268,70 +197,6 @@ function createBackup(filePath: string): string | null {
   const backupPath = getNextBackupPath(filePath);
   fs.copyFileSync(filePath, backupPath);
   return backupPath;
-}
-
-function validateWorkspacePath(workspacePath: string): void {
-  const home = os.homedir();
-  const resolved = path.resolve(workspacePath);
-
-  // Normalize paths to handle symlinks and trailing slashes
-  const normalizedResolved = path.normalize(resolved);
-  const normalizedHome = path.normalize(home);
-
-  // Check if workspace is within home directory
-  if (
-    !normalizedResolved.startsWith(normalizedHome + path.sep) &&
-    normalizedResolved !== normalizedHome
-  ) {
-    throw new Error(`Workspace must be within your home directory (${home}).`);
-  }
-}
-
-function resolveWorkspacePath(options: { dir?: string }): string {
-  if (options.dir) {
-    const resolved = path.resolve(options.dir);
-    validateWorkspacePath(resolved);
-    return resolved;
-  }
-
-  return DEFAULT_WORKSPACE;
-}
-
-function getRepoSoulSelections(
-  repo: string,
-  names: string[],
-  hasRootSoul: boolean
-): RepoSoulSelection[] {
-  const selections: RepoSoulSelection[] = [];
-  const seen = new Set<string>();
-
-  if (hasRootSoul) {
-    const rootName = normalizeName(repo);
-    if (rootName && !seen.has(rootName)) {
-      selections.push({
-        name: rootName,
-        label: `${repo} (root)`,
-        useRootLevel: true,
-      });
-      seen.add(rootName);
-    }
-  }
-
-  for (const rawName of [...names].sort()) {
-    const normalized = normalizeName(rawName);
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-
-    selections.push({
-      name: normalized,
-      label: normalized,
-      useRootLevel: false,
-    });
-    seen.add(normalized);
-  }
-
-  return selections;
 }
 
 async function resolveGitHubSoul(
