@@ -23,7 +23,7 @@ export interface ResolvedGitHubSoul {
   useRootLevel: boolean;
 }
 
-export interface ParsedSource {
+export type ParsedSource = {
   source: 'github';
   owner: string;
   repo: string;
