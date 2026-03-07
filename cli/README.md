@@ -159,6 +159,24 @@ SOUL.md files define an AI agent's personality, including:
 
 Browse available souls at [souls.sh](https://souls.sh)
 
+## Release
+
+For publishing the CLI package:
+
+```bash
+npm run release:patch
+npm run release:minor
+npm run release:major
+```
+
+From repo root, use:
+
+```bash
+npm run release:cli
+```
+
+These scripts run `npm version` and then `npm publish` for the `cli` package.
+
 ## License
 
 MIT

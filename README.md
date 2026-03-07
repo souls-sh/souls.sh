@@ -17,3 +17,19 @@ npx souls.sh install <identifier>
 ```bash
 https://souls.sh/skill.md
 ```
+
+## Release
+
+This repository has two deploy targets:
+
+1. Web app (Vercel): push to the connected branch (typically `main`) and Vercel handles deployment.
+2. CLI package (`cli`): publish to npm from the repo root with:
+
+```bash
+npm run release:cli:patch
+npm run release:cli:minor
+npm run release:cli:major
+npm run release:cli
+```
+
+Use the bump level that matches your version policy for the CLI package.
