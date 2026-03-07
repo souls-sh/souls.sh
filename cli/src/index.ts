@@ -11,11 +11,12 @@ import { fileURLToPath } from 'node:url';
 import {
   type ParsedSource,
   type RepoSoulsResult,
+  type RepoSoulSelection,
   parseInput,
   getRepoSoulSelections,
   normalizeName,
   resolveWorkspacePath,
-} from './helpers';
+} from './helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -231,7 +232,7 @@ async function resolveGitHubSoul(
   }
 
   if (totalSouls > 1) {
-    const available = selections.map((selection) => selection.label).join(', ');
+    const available = selections.map((selection: RepoSoulSelection) => selection.label).join(', ');
     if (mode === 'publish') {
       throw new Error(
         `Multiple souls found in ${owner}/${repo}. Use --name <name> to publish an individual soul. Use --all to publish all souls. Available souls: ${available}.`
