@@ -1,5 +1,5 @@
 import Header from '@/components/Header';
-import Leaderboard, { Soul } from '@/components/Leaderboard';
+import Leaderboard, { type Soul } from '@/components/Leaderboard';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';

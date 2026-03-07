@@ -13,16 +13,16 @@ interface BreadcrumbProps {
 
 export default function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <div className="flex items-center gap-2 text-sm text-(--ds-gray-600) mb-6 min-w-0">
+    <div className="mb-6 flex min-w-0 items-center gap-2 text-sm text-(--ds-gray-600)">
       {items.map((item, index) => (
-        <span key={index} className="contents">
+        <span key={`${item.href ?? 'current'}:${item.label}`} className="contents">
           {index > 0 && <span className="shrink-0">/</span>}
           {item.href ? (
-            <Link href={item.href} className="hover:text-foreground truncate min-w-0">
+            <Link href={item.href} className="hover:text-foreground min-w-0 truncate">
               {item.label}
             </Link>
           ) : (
-            <span className="text-(--ds-gray-600) truncate">{item.label}</span>
+            <span className="truncate text-(--ds-gray-600)">{item.label}</span>
           )}
         </span>
       ))}

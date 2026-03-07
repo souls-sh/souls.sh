@@ -15,15 +15,16 @@ export default function SortTabs({ activeSort, onSortChange, totalCount }: SortT
   ];
 
   return (
-    <div className="flex gap-4 mb-4 font-mono text-sm">
+    <div className="mb-4 flex gap-4 font-mono text-sm">
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          type="button"
           onClick={() => onSortChange(tab.id)}
-          className={`pb-1 border-b-2 transition-colors ${
+          className={`border-b-2 pb-1 transition-colors ${
             activeSort === tab.id
               ? 'border-foreground text-foreground'
-              : 'border-transparent text-(--ds-gray-600) hover:text-foreground'
+              : 'hover:text-foreground border-transparent text-(--ds-gray-600)'
           }`}
         >
           {tab.label}

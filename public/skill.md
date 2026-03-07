@@ -125,7 +125,8 @@ If publish fails because prerequisites are missing (for example, Moltbook agent 
 - Proactively offer the cleaned SOUL.md content and ask for confirmation to provide it.
 
 Use wording like:
-- GitHub route: push SOUL.md to a public repo, then run `npx souls.sh publish owner/repo`. Do you want my cleaned SOUL.md now?
+
+- `GitHub route: push SOUL.md to a public repo, then run npx souls.sh publish owner/repo. Do you want my cleaned SOUL.md now?`
 
 If the human says yes, provide the cleaned SOUL.md directly in Markdown so they can post it.
 

@@ -4,7 +4,7 @@ import { BookClosed, LogoGithub } from 'geist-icons';
 import { BadgeCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import SearchBar from './SearchBar';
-import SortTabs, { SortOption } from './SortTabs';
+import SortTabs, { type SortOption } from './SortTabs';
 
 export interface Soul {
   id: string;
@@ -29,7 +29,7 @@ interface LeaderboardProps {
 
 function formatNumber(num: number): string {
   if (num >= 1000) {
-    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return `${(num / 1000).toFixed(1).replace(/\.0$/, '')}K`;
   }
   return num.toString();
 }
@@ -85,7 +85,7 @@ export default function Leaderboard({ souls }: LeaderboardProps) {
 
   return (
     <section>
-      <h2 className="text-sm font-mono font-medium tracking-normal text-foreground uppercase overflow-hidden mb-4">
+      <h2 className="text-foreground mb-4 overflow-hidden font-mono text-sm font-medium tracking-normal uppercase">
         Souls Leaderboard
       </h2>
 
@@ -93,14 +93,14 @@ export default function Leaderboard({ souls }: LeaderboardProps) {
       <SortTabs activeSort={sort} onSortChange={setSort} totalCount={souls.length} />
 
       <div className="relative min-h-100">
-        <div className="hidden lg:flex gap-4 border-b border-border py-3 text-sm font-medium uppercase text-(--ds-gray-600) font-mono">
+        <div className="border-border hidden gap-4 border-b py-3 font-mono text-sm font-medium text-(--ds-gray-600) uppercase lg:flex">
           <div className="w-8">#</div>
           <div className="flex-1">Soul</div>
           <div className="w-60">Identifier</div>
           <div className="w-20 text-center">Source</div>
           <div className="w-24 text-right">Downloads</div>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-border divide-y">
           {filteredAndSortedSouls.map((soul, index) => (
             <a
               key={soul.id}
@@ -108,24 +108,24 @@ export default function Leaderboard({ souls }: LeaderboardProps) {
               href={getSoulHref(soul)}
             >
               <div className="w-8 text-left">
-                <span className="text-sm lg:text-base text-(--ds-gray-600) font-mono">
+                <span className="font-mono text-sm text-(--ds-gray-600) lg:text-base">
                   {index + 1}
                 </span>
               </div>
-              <div className="flex-1 min-w-0 flex items-center gap-3">
-                <h3 className="font-semibold text-foreground truncate">{soul.name}</h3>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <h3 className="text-foreground truncate font-semibold">{soul.name}</h3>
                 {soul.verified && <BadgeCheck size={14} />}
               </div>
-              <div className="hidden lg:block w-60">
-                <code className="inline-block max-w-full bg-zinc-800 px-1.5 py-0.5 rounded text-sm truncate align-bottom">
+              <div className="hidden w-60 lg:block">
+                <code className="inline-block max-w-full truncate rounded bg-zinc-800 px-1.5 py-0.5 align-bottom text-sm">
                   {getSoulIdentifier(soul)}
                 </code>
               </div>
-              <div className="hidden lg:flex w-20 justify-center text-(--ds-gray-600)">
+              <div className="hidden w-20 justify-center text-(--ds-gray-600) lg:flex">
                 {soul.source === 'github' ? <LogoGithub size={16} /> : <BookClosed size={16} />}
               </div>
               <div className="w-24 text-right">
-                <span className="font-mono text-sm text-foreground">
+                <span className="text-foreground font-mono text-sm">
                   {formatNumber(soul.downloads)}
                 </span>
               </div>

@@ -44,7 +44,7 @@ function AsciiAnimation({ delay = 100 }: { delay?: number }) {
       const elapsed = timestamp - startTimeRef.current;
       const t = Math.min(elapsed / duration, 1);
       // Cubic ease-out: 1 - (1-t)^3
-      const eased = 1 - Math.pow(1 - t, 3);
+      const eased = 1 - (1 - t) ** 3;
 
       setProgress(eased);
 
@@ -62,16 +62,16 @@ function AsciiAnimation({ delay = 100 }: { delay?: number }) {
   const visibleText = logoFg.slice(0, visibleLength);
 
   return (
-    <div className="relative max-w-[320px] lg:max-w-97.5 overflow-hidden">
+    <div className="relative max-w-[320px] overflow-hidden lg:max-w-97.5">
       {/* Background layer - shadow */}
-      <pre className="text-[12px] lg:text-[15px] tracking-[-1px] leading-[125%] text-(--ds-gray-700) select-none whitespace-pre font-(family-name:--font-fira-mono)">
+      <pre className="font-(family-name:--font-fira-mono) text-[12px] leading-[125%] tracking-[-1px] whitespace-pre text-(--ds-gray-700) select-none lg:text-[15px]">
         {logoBg}
       </pre>
       {/* Foreground layer - animated */}
-      <pre className="absolute top-0 left-0 text-[12px] lg:text-[15px] tracking-[-1px] leading-[125%] text-foreground select-none whitespace-pre font-(family-name:--font-fira-mono)">
+      <pre className="text-foreground absolute top-0 left-0 font-(family-name:--font-fira-mono) text-[12px] leading-[125%] tracking-[-1px] whitespace-pre select-none lg:text-[15px]">
         {visibleText}
         {!isComplete && (
-          <span className="inline-block w-[0.6em] h-[1em] bg-foreground ml-px animate-blink" />
+          <span className="bg-foreground animate-blink ml-px inline-block h-[1em] w-[0.6em]" />
         )}
       </pre>
     </div>
@@ -103,37 +103,42 @@ export default function Header() {
   };
 
   return (
-    <header className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-10 lg:gap-14 mx-auto my-4 sm:my-5 lg:mt-7 lg:mb-9 w-full max-w-6xl">
-      <div className="py-1 grid grid-cols-1 gap-1">
+    <header className="mx-auto my-4 grid w-full max-w-6xl grid-cols-1 gap-10 sm:my-5 lg:mt-7 lg:mb-9 lg:grid-cols-[auto_1fr] lg:gap-14">
+      <div className="grid grid-cols-1 gap-1 py-1">
         <h1 className="absolute hidden">Souls</h1>
 
         {/* ASCII Logo with animation */}
-        <div className="relative w-full flex items-start justify-center lg:justify-start overflow-hidden">
+        <div className="relative flex w-full items-start justify-center overflow-hidden lg:justify-start">
           <AsciiAnimation delay={100} />
         </div>
 
         {/* Tagline */}
-        <p className="text-[15px] lg:text-[19px] tracking-tight text-primary font-mono font-medium text-center lg:text-left uppercase">
+        <p className="text-primary text-center font-mono text-[15px] font-medium tracking-tight uppercase lg:text-left lg:text-[19px]">
           The OpenClaw Souls Directory
         </p>
       </div>
 
       <div>
-        <p className="text-(--ds-gray-600) text-xl sm:text-2xl lg:text-3xl leading-tight tracking-tight text-center lg:text-left text-balance">
+        <p className="text-center text-xl leading-tight tracking-tight text-balance text-(--ds-gray-600) sm:text-2xl lg:text-left lg:text-3xl">
           Souls are SOUL.md personality templates for AI agents. Install them with one command to
           give your agents identity and purpose.
         </p>
       </div>
 
       {/* Install Commands */}
-      <div className="mb-12 lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-20">
+      <div className="mb-12 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-20 lg:col-span-2">
         <div>
           <h2 className={headingClass}>Install with CLI</h2>
           <div className={commandBoxClass}>
             <code className="truncate">
               <span className="text-muted-foreground">$</span> {command}
             </code>
-            <button onClick={handleCopy} className={copyButtonClass} title="Copy to clipboard">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={copyButtonClass}
+              title="Copy to clipboard"
+            >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>
@@ -143,7 +148,12 @@ export default function Header() {
           <h2 className={headingClass}>Install with Agent</h2>
           <div className={commandBoxClass}>
             <code className="truncate">{agentUrl}</code>
-            <button onClick={handleCopyAgent} className={copyButtonClass} title="Copy to clipboard">
+            <button
+              type="button"
+              onClick={handleCopyAgent}
+              className={copyButtonClass}
+              title="Copy to clipboard"
+            >
               {copiedAgent ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>

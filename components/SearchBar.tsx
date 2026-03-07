@@ -30,8 +30,8 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
 
   return (
     <div className="relative mb-6">
-      <div className="absolute inset-y-0 left-0 pl-0 flex items-center pointer-events-none">
-        <Search className="h-4 w-4 text-muted-foreground transition-opacity duration-200" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-0">
+        <Search className="text-muted-foreground h-4 w-4 transition-opacity duration-200" />
       </div>
       <input
         ref={inputRef}
@@ -39,10 +39,10 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search souls..."
-        className="w-full border-b font-mono py-3 text-base lg:text-sm pl-8 pr-8 text-foreground placeholder:text-(--ds-gray-600) placeholder:font-mono focus:border-(--ds-gray-1000) focus:outline-none focus:ring-0 transition-colors duration-100 bg-transparent border-(--ds-gray-400)"
+        className="text-foreground w-full border-b border-(--ds-gray-400) bg-transparent py-3 pr-8 pl-8 font-mono text-base transition-colors duration-100 placeholder:font-mono placeholder:text-(--ds-gray-600) focus:border-(--ds-gray-1000) focus:ring-0 focus:outline-none lg:text-sm"
       />
-      <div className="absolute inset-y-0 right-0 pr-0 flex items-center pointer-events-none">
-        <kbd className="px-1.5 py-0.5 text-xs text-(--ds-gray-600) border border-(--ds-gray-400) rounded font-mono">
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-0">
+        <kbd className="rounded border border-(--ds-gray-400) px-1.5 py-0.5 font-mono text-xs text-(--ds-gray-600)">
           /
         </kbd>
       </div>
